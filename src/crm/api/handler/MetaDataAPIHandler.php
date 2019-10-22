@@ -16,15 +16,15 @@ use zcrmsdk\crm\utility\APIConstants;
 
 class MetaDataAPIHandler extends APIHandler
 {
-    
+
     private function __construct()
     {}
-    
+
     public static function getInstance()
     {
         return new MetaDataAPIHandler();
     }
-    
+
     public function getAllModules()
     {
         try {
@@ -40,14 +40,14 @@ class MetaDataAPIHandler extends APIHandler
                 array_push($responseData, $module);
             }
             $responseInstance->setData($responseData);
-            
+
             return $responseInstance;
         } catch (ZCRMException $exception) {
             APIExceptionHandler::logException($exception);
             throw $exception;
         }
     }
-    
+
     public function getModule($moduleName)
     {
         try {
@@ -63,7 +63,7 @@ class MetaDataAPIHandler extends APIHandler
             throw $exception;
         }
     }
-    
+
     public function getZCRMModule($moduleDetails)
     {
         $crmModuleInstance = ZCRMModule::getInstance($moduleDetails[APIConstants::API_NAME]);
@@ -84,29 +84,29 @@ class MetaDataAPIHandler extends APIHandler
         if (isset($moduleDetails['sequence_number'])) {
             $crmModuleInstance->setSequenceNumber($moduleDetails['sequence_number']);
         }
-        
+
         if (isset($moduleDetails['global_search_supported'])) {
             $crmModuleInstance->setGlobalSearchSupported($moduleDetails['global_search_supported']);
         }
-        
+
         $zcrmUserInstance = null;
         if ($moduleDetails['modified_by'] != null) {
             $zcrmUserInstance = ZCRMUser::getInstance(($moduleDetails['modified_by']["id"]), $moduleDetails['modified_by']["name"]);
         }
         $crmModuleInstance->setModifiedBy($zcrmUserInstance);
         $crmModuleInstance->setCustomModule('custom' === $moduleDetails['generated_type']);
-        
+
         if (array_key_exists("business_card_fields", $moduleDetails)) {
             $crmModuleInstance->setBusinessCardFields($moduleDetails['business_card_fields']);
         }
-        
+
         $profileArray = $moduleDetails['profiles'];
         $profileInstanceArray = array();
         foreach ($profileArray as $eachProfile) {
             array_push($profileInstanceArray, ZCRMProfile::getInstance($eachProfile['id'], $eachProfile['name']));
         }
         $crmModuleInstance->setAllProfiles($profileInstanceArray);
-        
+
         if (array_key_exists("display_field", $moduleDetails)) {
             $crmModuleInstance->setDisplayFieldName($moduleDetails['display_field']);
         }
@@ -123,23 +123,23 @@ class MetaDataAPIHandler extends APIHandler
         if (array_key_exists("layouts", $moduleDetails)) {
             $crmModuleInstance->setLayouts(ModuleAPIHandler::getInstance(ZCRMModule::getInstance($moduleDetails[APIConstants::API_NAME]))->getLayouts($moduleDetails['layouts']));
         }
-        
+
         if (array_key_exists("fields", $moduleDetails) && $moduleDetails['fields'] != null) {
             $crmModuleInstance->setFields(ModuleAPIHandler::getInstance(ZCRMModule::getInstance($moduleDetails[APIConstants::API_NAME]))->getFields($moduleDetails['fields']));
         }
-        
+
         if (array_key_exists("related_list_properties", $moduleDetails) && $moduleDetails['related_list_properties'] != null) {
             $crmModuleInstance->setRelatedListProperties(self::getRelatedListProperties($moduleDetails['related_list_properties']));
         }
-        
+
         if (array_key_exists('$properties', $moduleDetails) && $moduleDetails['$properties'] != null) {
             $crmModuleInstance->setProperties($moduleDetails['$properties']);
         }
-        
+
         if (array_key_exists('per_page', $moduleDetails) && $moduleDetails['per_page'] != null) {
             $crmModuleInstance->setPerPage($moduleDetails['per_page'] + 0);
         }
-        
+
         if (array_key_exists('search_layout_fields', $moduleDetails) && $moduleDetails['search_layout_fields'] != null) {
             $crmModuleInstance->setSearchLayoutFields($moduleDetails['search_layout_fields']);
         }
@@ -151,19 +151,19 @@ class MetaDataAPIHandler extends APIHandler
             $crmModuleInstance->setDefaultTerritoryId($moduleDetails['territory']['id']);
             $crmModuleInstance->setDefaultTerritoryName($moduleDetails['territory']['name']);
         }
-        
+
         return $crmModuleInstance;
     }
-    
-    
-    
+
+
+
     public function getRelatedListProperties($relatedListProperties)
     {
         $relatedListPropInstance = ZCRMRelatedListProperties::getInstance();
         $relatedListPropInstance->setSortBy(array_key_exists("sort_by", $relatedListProperties) ? $relatedListProperties['sort_by'] : null);
         $relatedListPropInstance->setSortOrder(array_key_exists("sort_order", $relatedListProperties) ? $relatedListProperties['sort_order'] : null);
         $relatedListPropInstance->setFields(array_key_exists("fields", $relatedListProperties) ? $relatedListProperties['fields'] : null);
-        
+
         return $relatedListPropInstance;
     }
     public function constructCriteria($criteria,&$index)
@@ -177,7 +177,11 @@ class MetaDataAPIHandler extends APIHandler
             $criteria_instance->setIndex($index);
             $criteria_instance->setPattern((string)$index);
             $index++;
-            $criteria_instance->setCriteria("(".$criteria['field'].":".$criteria['comparator'].":".(string)$criteria['value'].")");
+            if (is_array($criteria['value'])) {
+                $criteria_instance->setCriteria("(".$criteria['field'].":".$criteria['comparator'].":".implode(',', $criteria['value']).")");
+            } else {
+                $criteria_instance->setCriteria("(".$criteria['field'].":".$criteria['comparator'].":".$criteria['value'].")");
+            }
         }
         $group_criteria=array();
         if (isset($criteria['group']))
@@ -191,7 +195,7 @@ class MetaDataAPIHandler extends APIHandler
         {
             $criteria_instance->setGroup($group_criteria);
         }
-        
+
         if(isset($criteria['group_operator'])){
             $criteria_instance->setGroup_operator($criteria['group_operator']);
             $criteria_instance->setCriteria("(".$group_criteria[0]->getCriteria().$criteria_instance->getGroup_operator().$group_criteria[1]->getCriteria().")");
